@@ -32,9 +32,13 @@ async def connectToVoice(ctx, bot, *join):
                     voice = discord.utils.get(bot.voice_clients, guild=ctx.guild)
                     return voice
                 else:
-                    botresponse = "usernotconnected"
+                    '''botresponse = "usernotconnected"
                     errormessage = await getBotResponse.getBotResponse(botresponse)
-                    await sendBotMessage.sendBotMessage(ctx, errormessage)
+                    await sendBotMessage.sendBotMessage(ctx, errormessage)'''
+                    
+                    '''Bot is already connected → just return the voice client'''
+                    voice = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+                    return voice
     except Exception as e:
         print(f"Could not get the user voice channel: {e}")
 

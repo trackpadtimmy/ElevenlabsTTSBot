@@ -26,7 +26,7 @@ async def getFilePath(ttsuser, response):
         audiofile = FFmpegPCMAudio(filepath)
     except Exception as e:
         print(f"Something went wrong when getting the file path: {e}")
-    return audiofile
+    return audiofile, filepath
 
 async def checkFilePath(ttsuser, filepath):
     counter = 2

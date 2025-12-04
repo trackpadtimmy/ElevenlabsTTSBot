@@ -22,7 +22,7 @@ async def getRandomVoice(voicedata):
     ttsvoice = voicedata[voicenum]['name'].capitalize()
     print(f"Random voice: {ttsvoice}")
     return ttsvoice, voiceid
-
+'''
 async def checkRandomVoice(name, voicedata, ctx):
     ttsvoice = name.capitalize()
     if ttsvoice == "Random":
@@ -30,8 +30,9 @@ async def checkRandomVoice(name, voicedata, ctx):
     else:
         ttsvoice, voiceid = await getSelectedVoice(ttsvoice, voicedata, ctx)
     return ttsvoice, voiceid
-
+'''
 async def getSelectedVoice(voicename, voicedata, ctx):
+    voicename = voicename.capitalize()
     foundvoice = ""
     for i in range(len(voicedata)):
         if voicename == voicedata[i]['name']:
@@ -50,9 +51,11 @@ async def setStability(stability):
 
     if stablecheck > 100:
         print("Stability cannot exceed 100. Defaulting to '50'.")
-        return '0.5'
-    else:
-        return str(stablecheck / 100)
+        stablecheck = 50
+    elif stablecheck < 0:
+        print("Stability cannot be less than 0. Defaulting to '50'.")
+        stablecheck = 50
+    return str(stablecheck / 100)
 
 async def getCustomVoice(name):
     foundMatch = False

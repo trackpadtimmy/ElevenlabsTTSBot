@@ -1,9 +1,15 @@
 import discord
+from discord import FFmpegPCMAudio
 import functions.sendBotMessage as sendBotMessage
 import functions.getBotResponse as getBotResponse
 
 async def playVoice(ttsvoice, botmessage, ttsuser, voice, audiofile):
     print(f"{ttsvoice} says: {botmessage} as requested by {ttsuser}.")
+    await stopStart(voice, audiofile)
+
+async def playAudiofile(voice, audiofile_path):
+    print(f"Playing {audiofile_path}")
+    audiofile = FFmpegPCMAudio(audiofile_path)
     await stopStart(voice, audiofile)
 
 async def playJoinVoice(ttsvoice, botmessage, ttsuser, voice, audiofile):

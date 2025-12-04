@@ -50,5 +50,7 @@ async def getBotResponse(botresponse):
                     return("Stopping the madness")
                 case 'notspeaking':
                     return("Can't stop if I'm not goin!")
+                case 'missingarg':
+                    return(f"Missing argument, please check {PREFIX}help for command guides")
                 case _:
                     return("It doesn't work I guess, beats me.")

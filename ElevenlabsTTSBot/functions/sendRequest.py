@@ -46,14 +46,21 @@ async def getAvailableVoices(ctx, voicedata):
         print(f"Could not fetch available voices: {e}")
 
 async def getQuota(ctx):
-    url = "https://api.elevenlabs.io/v1/user"
-    apiheaders = {
-    "Accept": "application/json",
-    "xi-api-key": APIKEY
-    }
-    response = requests.get(url, headers=apiheaders, timeout=10)
-    listtest = json.loads(response.text)
-    remainingquota = int(listtest["subscription"]["character_limit"]) - int(listtest["subscription"]["character_count"])
-    botmessage = await ctx.send("Your remaining quota for this month is: " + str(remainingquota) + " characters.")
-    await asyncio.sleep(10)
-    await botmessage.delete()
+    try:
+        url = "https://api.elevenlabs.io/v1/user"
+        apiheaders = {
+        "Accept": "application/json",
+        "xi-api-key": APIKEY
+        }
+        response = requests.get(url, headers=apiheaders, timeout=10)
+        data = response.json()
+        listtest = json.loads(response.text)
+        remainingquota = int(listtest["subscription"]["character_limit"]) - int(listtest["subscription"]["character_count"])
+        botmessage = await ctx.send("Your remaining quota for this month is: " + str(remainingquota) + " characters.")
+        await asyncio.sleep(10)
+        await botmessage.delete()
+    except:
+        print(f"Error fetching quota information: {data.get('detail', data)}")
+        botmessage = await ctx.send(f"Error fetching quota information: {data.get('detail', data)}")
+        await asyncio.sleep(15)
+        await botmessage.delete()

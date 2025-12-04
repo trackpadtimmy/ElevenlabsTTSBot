@@ -20,7 +20,7 @@ async def sendErrorMessage(errormessage, ctx, error):
     try:
         botmessage = await ctx.send(errormessage)
         print(f"Error: {error}")
-        await asyncio.sleep(5)
+        await asyncio.sleep(10)
         await botmessage.delete()
     except Exception as e:
         print(f"Couldn't send message: {e}")
@@ -29,7 +29,7 @@ async def sendValueErrorMessage(errormessage, ctx, error):
     try:
         botmessage = await ctx.send(errormessage)
         print(f"Value Error: {error}")
-        await asyncio.sleep(5)
+        await asyncio.sleep(10)
         await botmessage.delete()
     except Exception as e:
         print(f"Couldn't send message: {e}")
@@ -40,7 +40,7 @@ async def sendJoinErrorMessage(ctx):
         errormessage = await getBotResponse.getBotResponse(botresponse, RUDE_BOT, PREFIX)
         botmessage = await ctx.send(errormessage)
         print("user is not in a channel or bot does not have access")
-        await asyncio.sleep(5)
+        await asyncio.sleep(10)
         await botmessage.delete()
     except Exception as e:
         print(f"Couldn't send message: {e}")
