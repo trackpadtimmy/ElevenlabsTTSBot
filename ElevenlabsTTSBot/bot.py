@@ -1,5 +1,6 @@
 import asyncio
 import random
+import glob
 import json
 import os
 import traceback
@@ -130,21 +131,52 @@ async def _custom(ctx,
                *message):
     await process_tts_request(ctx, name, stability, *message)
 
-@bot.command(pass_context=True, name="playfile", help="Play a specific audio file from the audio folder. '!playfile username123' param: <Filename>")
-async def _playfile(ctx,
-                    filename: str = commands.parameter(description="The name of the audio file you want to play from the audio folder")):
-
+@bot.command(pass_context=True, name="play", help="Play a specific audio file from the audio folder. '!play username123' param: <Filename>")
+async def _play(ctx, *filename):
     if (voice := await connectToVoice.connectToVoice(ctx, bot)) is not None:
-        if not filename.endswith(".mp3"):
-            filename = filename + ".mp3"
-        audiofile_path = SOUNDFILEDIR + filename
-        
-        if not os.path.isfile(audiofile_path):
-            await sendBotMessage.sendBotMessage(ctx, f"File not found: {filename}")
-            return
+        try:
+            filename = " ".join(filename[:])
+            filename = filename.replace(" ", "")
+            if not filename.endswith(".mp3"):
+                filename = filename + ".mp3"
+            audiofile_path = SOUNDFILEDIR + filename
 
-        await playVoice.playAudiofile(voice, audiofile_path)
-        await sendBotMessage.sendBotMessage(ctx, f"Playing audio file: {filename}")
+            if not os.path.isfile(audiofile_path):
+                await sendBotMessage.sendBotMessage(ctx, f"File not found: {filename}")
+                return
+            await playVoice.playAudiofile(voice, audiofile_path)
+            await sendBotMessage.sendBotMessage(ctx, f"Playing audio file: {filename}")
+        except (ValueError, UnboundLocalError) as error:
+            botresponse = "valerror"
+            errormessage = await getBotResponse.getBotResponse(botresponse)
+            await sendErrorMessage.sendValueErrorMessage(errormessage, ctx, error)
+        except Exception as error:
+            botresponse = ""
+            errormessage = await getBotResponse.getBotResponse(botresponse)
+            await sendErrorMessage.sendValueErrorMessage(errormessage, ctx, error)
+
+@bot.command(pass_context=True, name="playrand", help="Play a random audio file from the audio folder.")
+async def _playrand(ctx):
+    if (voice := await connectToVoice.connectToVoice(ctx, bot)) is not None:
+        try:
+            list = glob.glob(SOUNDFILEDIR + "*.mp3")
+            if not list:
+                await sendBotMessage.sendBotMessage(ctx, "No audio files found in the soundfiles directory.")
+                return
+            audiofile_path = str(random.choice(list))
+            filename = os.path.basename(audiofile_path)
+
+            await playVoice.playAudiofile(voice, audiofile_path)
+            await sendBotMessage.sendBotMessage(ctx, f"Playing audio file: {filename}")
+        except (ValueError, UnboundLocalError) as error:
+            botresponse = "valerror"
+            errormessage = await getBotResponse.getBotResponse(botresponse)
+            await sendErrorMessage.sendValueErrorMessage(errormessage, ctx, error)
+        except Exception as error:
+            botresponse = ""
+            errormessage = await getBotResponse.getBotResponse(botresponse)
+            await sendErrorMessage.sendValueErrorMessage(errormessage, ctx, error)
+
 
 @bot.event
 async def on_voice_state_update(member, before, after):

@@ -5,7 +5,7 @@ from discord import File
 async def sendBotMessage(ctx, botmessage):
     try:
         botmessage = await ctx.send(botmessage)
-        await asyncio.sleep(15)
+        await asyncio.sleep(30)
         await botmessage.delete()
     except Exception as e:
         print(f"Couldn't send message: {e}")
