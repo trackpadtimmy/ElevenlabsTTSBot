@@ -2,6 +2,7 @@ import requests
 import json
 import asyncio
 import os
+import functions.sendBotMessage as sendBotMessage
 
 try:
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -39,9 +40,9 @@ async def getAvailableVoices(ctx, voicedata):
     try:
         namelist = sorted([i['name'].capitalize() for i in voicedata])
         message = ', '.join(namelist)
-        botmessage = await ctx.send(f"These are the available TTS voices:\n{message}")
-        await asyncio.sleep(45)
-        await botmessage.delete()
+
+        botmessage = (f"These are the available TTS voices:\n{message}")
+        await sendBotMessage.sendBotMessage(ctx, botmessage, -1)
     except Exception as e:
         print(f"Could not fetch available voices: {e}")
 
@@ -56,11 +57,9 @@ async def getQuota(ctx):
         data = response.json()
         listtest = json.loads(response.text)
         remainingquota = int(listtest["subscription"]["character_limit"]) - int(listtest["subscription"]["character_count"])
-        botmessage = await ctx.send("Your remaining quota for this month is: " + str(remainingquota) + " characters.")
-        await asyncio.sleep(10)
-        await botmessage.delete()
+        botmessage =("Your remaining quota for this month is: " + str(remainingquota) + " characters.")
+        await sendBotMessage.sendBotMessage(ctx, botmessage)
     except:
         print(f"Error fetching quota information: {data.get('detail', data)}")
-        botmessage = await ctx.send(f"Error fetching quota information: {data.get('detail', data)}")
-        await asyncio.sleep(15)
-        await botmessage.delete()
+        botmessage = (f"Error fetching quota information: {data.get('detail', data)}")
+        await sendBotMessage.sendBotMessage(ctx, botmessage, 15)

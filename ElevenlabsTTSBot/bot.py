@@ -115,7 +115,7 @@ async def load_soundboard():
     try:
         if not os.path.exists(SOUNDBOARD_FILE):
             with open(SOUNDBOARD_FILE, 'w') as f:
-                json.dump({"aliases": {}}, f, indent=4)
+                json.dump({"aliases": {}}, f, indent=4, sort_keys=True)
     except Exception as e:
         print(f"Could not create soundboard file: {e}")
     
@@ -129,7 +129,7 @@ async def load_soundboard():
 async def save_soundboard(soundboard):
     try:
         with open(SOUNDBOARD_FILE, 'w') as f:
-            json.dump(soundboard, f, indent=4)
+            json.dump(soundboard, f, indent=4, sort_keys=True)
     except Exception as e:
         print(f"Could not save soundboard file: {e}")
 
@@ -186,8 +186,9 @@ async def list_aliases(ctx):
         if not soundboard["aliases"]:
             await sendBotMessage.sendBotMessage(ctx, "No aliases found in the soundboard.")
             return
-        alias_list = "\n".join([f"{label}: {filename}" for label, filename in soundboard["aliases"].items()])
-        await sendBotMessage.sendBotMessage(ctx, f"Soundboard Aliases:\n{alias_list}")
+        alias_list = ", ".join(soundboard["aliases"].keys())
+        count = len(soundboard["aliases"])
+        await sendBotMessage.sendBotMessage(ctx, f"{count} Soundboard Aliases:\n{alias_list}", -1)
     
     except Exception as error:
         botresponse = ""

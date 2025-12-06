@@ -2,15 +2,16 @@ import asyncio
 import os
 from discord import File
 
-async def sendBotMessage(ctx, botmessage):
+async def sendBotMessage(ctx, botmessage, delay=30):
     try:
         botmessage = await ctx.send(botmessage)
-        asyncio.create_task(deleteBotMessage(botmessage))
+        if delay > 0:
+            asyncio.create_task(deleteBotMessage(botmessage, delay))
     except Exception as e:
         print(f"Couldn't send message: {e}")
 
-async def deleteBotMessage(botmessage):
-    await asyncio.sleep(30)
+async def deleteBotMessage(botmessage, delay):
+    await asyncio.sleep(delay)
     try:
         await botmessage.delete()
     except:
@@ -30,10 +31,6 @@ async def sendPlayingMessage(ctx, ttsuser, ttsvoice, stabstr, botmessage, credit
 
         botmessage = await ctx.send(content=infomessage, file=audio)
 
-        '''
-        await asyncio.sleep(15)
-        await botmessage.delete()
-        '''
     except Exception as e:
         print(f"Couldn't send message: {e}")
 
