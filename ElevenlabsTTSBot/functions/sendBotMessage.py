@@ -5,10 +5,16 @@ from discord import File
 async def sendBotMessage(ctx, botmessage):
     try:
         botmessage = await ctx.send(botmessage)
-        await asyncio.sleep(30)
-        await botmessage.delete()
+        asyncio.create_task(deleteBotMessage(botmessage))
     except Exception as e:
         print(f"Couldn't send message: {e}")
+
+async def deleteBotMessage(botmessage):
+    await asyncio.sleep(30)
+    try:
+        await botmessage.delete()
+    except:
+        pass
 
 async def sendPlayingMessage(ctx, ttsuser, ttsvoice, stabstr, botmessage, credits_used, audiofile_path):
     try:
@@ -35,7 +41,7 @@ async def sendVoiceNotFoundMessage(voicename, ctx):
     try:
         infomessage = f"Couldn't find a voice named {voicename}"
         botmessage = await ctx.send(infomessage)
-        await asyncio.sleep(15)
+        await asyncio.sleep(30)
         await botmessage.delete()
     except Exception as e:
         print(f"Couldn't send message: {e}")

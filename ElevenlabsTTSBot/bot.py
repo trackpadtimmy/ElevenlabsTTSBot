@@ -25,6 +25,7 @@ try:
     with open(botdata_path, 'r') as jsonbotdata:
         botdata = json.load(jsonbotdata)
     SOUNDFILEDIR = 'soundfiles/'
+    SOUNDBOARD_FILE ='soundboard.json'
     TOKEN = botdata['discord_token']
     PREFIX = botdata['command_prefix']
     SERVERID = botdata['discord_server_id']
@@ -78,6 +79,9 @@ async def process_tts_request(ctx, name, stability, *message):
                     if ttsvoice == "" or voiceid == "":
                         raise ValueError("Couldn't find a custom voice with the requested name. Please make sure the voice has been added to the customvoices.json file and the VoiceLabs library on your Elevenlabs profile.")
                     stability = await getBotVoice.setStability(stability)
+            
+            if name.lower() == "random":
+                ttsvoice, voiceid = await getBotVoice.getRandomVoice(voicedata)
 
             response = await sendRequest.getSoundclip(voiceid, botmessage, TTSMODEL, stability)
             # Check for errors in the response
@@ -107,32 +111,90 @@ async def process_tts_request(ctx, name, stability, *message):
             errormessage = await getBotResponse.getBotResponse(botresponse)
             await sendErrorMessage.sendValueErrorMessage(errormessage, ctx, error)
 
-@bot.command(pass_context=True, name="tts", help=f"Use tts Voice message, example: '{PREFIX}tts Adam 50 Hello World' param: <Voice or random> <Stability 1-100> <Message>")
-async def _tts(ctx, 
-               name: str = commands.parameter(description="The name of the voice you want to use"), 
-               stability: str = commands.parameter(description="The stability of the voice, a number between 0-100"), 
-               *message):
-    await process_tts_request(ctx, name, stability, *message)
+async def load_soundboard():
+    try:
+        if not os.path.exists(SOUNDBOARD_FILE):
+            with open(SOUNDBOARD_FILE, 'w') as f:
+                json.dump({"aliases": {}}, f, indent=4)
+    except Exception as e:
+        print(f"Could not create soundboard file: {e}")
+    
+    try:
+        with open(SOUNDBOARD_FILE, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Could not load soundboard file: {e}")
+        return {}
 
-@bot.command(pass_context=True, name="unstable", help="TTS with 0 stability, for making crazy stuff! '!tts Adam Hello World' param: <Voice or random> <Message>")
-async def _unstable(ctx, 
-                    name: str = commands.parameter(description="The name of the voice you want to use. Or put Random."), 
-                    *message):
-    await process_tts_request(ctx, name, 0, *message)
+async def save_soundboard(soundboard):
+    try:
+        with open(SOUNDBOARD_FILE, 'w') as f:
+            json.dump(soundboard, f, indent=4)
+    except Exception as e:
+        print(f"Could not save soundboard file: {e}")
 
-@bot.command(pass_context=True, name="random", help="Takes a random voice and stability, just type " + PREFIX + "'random Hello World'")
-async def _random(ctx, *message):
-    await process_tts_request(ctx, "random", 0, *message)
+async def add_alias(ctx, label, *filename):
+    try:
+        label = label.lower()
 
-@bot.command(pass_context=True, name="custom", help=f"Custom voice tts, example: '{PREFIX}custom Adam 50 Hello World' param: <Voice or random> <Stability 1-100> <Message>")
-async def _custom(ctx, 
-               name: str = commands.parameter(description="The name of the voice you want to use"), 
-               stability: str = commands.parameter(description="The stability of the voice, a number between 0-100"), 
-               *message):
-    await process_tts_request(ctx, name, stability, *message)
+        filename = " ".join(filename[:])
+        filename = filename.replace(" ", "")
+        if not filename.endswith(".mp3"):
+            filename = filename + ".mp3"
+        audiofile_path = SOUNDFILEDIR + filename
+        if not os.path.isfile(audiofile_path):
+            await sendBotMessage.sendBotMessage(ctx, f"File not found: {filename}")
+            return
+        soundboard = await load_soundboard()
+        if label in soundboard["aliases"] and ctx.command.name == "alias":
+            await sendBotMessage.sendBotMessage(ctx, f"Alias '{label}' already exists. Please run `{PREFIX}aliasw {label} {filename}` to overwrite it.")
+            return
+        elif label in soundboard["aliases"] and ctx.command.name == "aliasw":
+            await sendBotMessage.sendBotMessage(ctx, f"Alias '{label}' already exists and will be overwritten.")
+            soundboard["aliases"][label] = filename
+            await save_soundboard(soundboard)
+            await sendBotMessage.sendBotMessage(ctx, f"Alias '{label}' created for file '{filename}'")
+        else:
+            soundboard["aliases"][label] = filename
+            await save_soundboard(soundboard)
+            await sendBotMessage.sendBotMessage(ctx, f"Alias '{label}' created for file '{filename}'")
+    
+    except Exception as error:
+        botresponse = ""
+        errormessage = await getBotResponse.getBotResponse(botresponse)
+        await sendErrorMessage.sendErrorMessage(errormessage, ctx, error)
 
-@bot.command(pass_context=True, name="play", help="Play a specific audio file from the audio folder. '!play username123' param: <Filename>")
-async def _play(ctx, *filename):
+async def delete_alias(ctx, label):
+    try:
+        label = label.lower()
+        soundboard = await load_soundboard()
+        if label not in soundboard["aliases"]:
+            await sendBotMessage.sendBotMessage(ctx, f"Alias '{label}' does not exist.")
+            return
+        del soundboard["aliases"][label]
+        await save_soundboard(soundboard)
+        await sendBotMessage.sendBotMessage(ctx, f"Alias '{label}' has been removed.")
+
+    except Exception as error:
+        botresponse = ""
+        errormessage = await getBotResponse.getBotResponse(botresponse)
+        await sendErrorMessage.sendErrorMessage(errormessage, ctx, error)
+
+async def list_aliases(ctx):
+    try:
+        soundboard = await load_soundboard()
+        if not soundboard["aliases"]:
+            await sendBotMessage.sendBotMessage(ctx, "No aliases found in the soundboard.")
+            return
+        alias_list = "\n".join([f"{label}: {filename}" for label, filename in soundboard["aliases"].items()])
+        await sendBotMessage.sendBotMessage(ctx, f"Soundboard Aliases:\n{alias_list}")
+    
+    except Exception as error:
+        botresponse = ""
+        errormessage = await getBotResponse.getBotResponse(botresponse)
+        await sendErrorMessage.sendErrorMessage(errormessage, ctx, error)
+
+async def play_file(ctx, *filename):
     if (voice := await connectToVoice.connectToVoice(ctx, bot)) is not None:
         try:
             filename = " ".join(filename[:])
@@ -146,6 +208,7 @@ async def _play(ctx, *filename):
                 return
             await playVoice.playAudiofile(voice, audiofile_path)
             await sendBotMessage.sendBotMessage(ctx, f"Playing audio file: {filename}")
+        
         except (ValueError, UnboundLocalError) as error:
             botresponse = "valerror"
             errormessage = await getBotResponse.getBotResponse(botresponse)
@@ -153,10 +216,9 @@ async def _play(ctx, *filename):
         except Exception as error:
             botresponse = ""
             errormessage = await getBotResponse.getBotResponse(botresponse)
-            await sendErrorMessage.sendValueErrorMessage(errormessage, ctx, error)
+            await sendErrorMessage.sendErrorMessage(errormessage, ctx, error)
 
-@bot.command(pass_context=True, name="playrand", help="Play a random audio file from the audio folder.")
-async def _playrand(ctx):
+async def play_rand_file(ctx):
     if (voice := await connectToVoice.connectToVoice(ctx, bot)) is not None:
         try:
             list = glob.glob(SOUNDFILEDIR + "*.mp3")
@@ -168,6 +230,7 @@ async def _playrand(ctx):
 
             await playVoice.playAudiofile(voice, audiofile_path)
             await sendBotMessage.sendBotMessage(ctx, f"Playing audio file: {filename}")
+        
         except (ValueError, UnboundLocalError) as error:
             botresponse = "valerror"
             errormessage = await getBotResponse.getBotResponse(botresponse)
@@ -175,8 +238,94 @@ async def _playrand(ctx):
         except Exception as error:
             botresponse = ""
             errormessage = await getBotResponse.getBotResponse(botresponse)
-            await sendErrorMessage.sendValueErrorMessage(errormessage, ctx, error)
+            await sendErrorMessage.sendErrorMessage(errormessage, ctx, error)
 
+async def play_alias(ctx, label):
+    label = label.lower()
+    soundboard = await load_soundboard()
+    if label not in soundboard["aliases"]:
+        await sendBotMessage.sendBotMessage(ctx, f"Alias '{label}' does not exist.")
+        return
+    filename = soundboard["aliases"][label]
+    await play_file(ctx, filename)
+
+@bot.command(pass_context=True, name="tts", help=f"Use tts Voice message. `{PREFIX}tts Adam 50 Hello World` param: <Voice or random> <Stability 1-100> <Message>")
+async def _tts(ctx, 
+               name: str = commands.parameter(description="The name of the voice you want to use"), 
+               stability: str = commands.parameter(description="The stability of the voice, a number between 0-100"), 
+               *message):
+    await process_tts_request(ctx, name, stability, *message)
+
+@bot.command(pass_context=True, name="unstable", help=f"TTS with 0 stability, for making crazy stuff! `{PREFIX}tts Adam Hello World` param: <Voice or random> <Message>")
+async def _unstable(ctx, 
+                    name: str = commands.parameter(description="The name of the voice you want to use. Or put Random."), 
+                    *message):
+    await process_tts_request(ctx, name, 0, *message)
+
+@bot.command(pass_context=True, name="random", help=f"Takes a random voice and stability. `{PREFIX}random Hello World` param: <Message>")
+async def _random(ctx, *message):
+    await process_tts_request(ctx, "random", 0, *message)
+
+@bot.command(pass_context=True, name="custom", help=f"Custom voice tts. `{PREFIX}custom Adam 50 Hello World` param: <Voice or random> <Stability 1-100> <Message>")
+async def _custom(ctx, 
+               name: str = commands.parameter(description="The name of the voice you want to use"), 
+               stability: str = commands.parameter(description="The stability of the voice, a number between 0-100"), 
+               *message):
+    await process_tts_request(ctx, name, stability, *message)
+
+@bot.command(pass_context=True, name="play", help=f"Play a specific audio file from the audio folder. `{PREFIX}play username123` param: <Filename>")
+async def _play(ctx, *filename):
+    await play_file(ctx, *filename)
+
+@bot.command(pass_context=True, name="playrand", help=f"Play a random audio file from the audio folder. `{PREFIX}playrand`")
+async def _playrand(ctx):
+    await play_rand_file(ctx)
+
+@bot.command(pass_context=True, name="alias", help=f"Creates a label for a sound file in the soundboard. Lowercase, no spaces allowed.`{PREFIX}alias label username123` param: <Label> <Filename>")
+async def _alias(ctx,
+                 label: str = commands.parameter(description="The label you want to assign to the sound file"),
+                 *filename):
+    await add_alias(ctx, label, *filename)
+
+@bot.command(pass_context=True, name="aliasw", help=f"Creates a label for a sound file in the soundboard. Lowercase, no spaces allowed, overwrites by default. `{PREFIX}alias label username123` param: <Label> <Filename>")
+async def _aliasw(ctx,
+                  label: str = commands.parameter(description="The label you want to assign to the sound file"),
+                  *filename):
+    await add_alias(ctx, label, *filename)
+
+@bot.command(pass_context=True, name="unalias", help=f"Removes a name from the soundboard. `{PREFIX}unalias label` param: <Label>")
+async def _unalias(ctx,
+                   label: str = commands.parameter(description="The label of the sound file to remove")):
+    await delete_alias(ctx, label)
+
+@bot.command(pass_context=True, name="list", help=f"Lists all soundboard aliases. `{PREFIX}list`")
+async def _list(ctx):
+    await list_aliases(ctx)
+
+@bot.command(pass_context=True, name="soundboard", aliases=["sb"], help=f"Plays a sound from the soundboard by its label. `{PREFIX}soundboard label` param: <Label>")
+async def _soundboard(ctx,
+                      label: str = commands.parameter(description="The label of the sound file to play")):
+    await play_alias(ctx, label)
+
+@bot.command(pass_context=True, name="voices", help="Displays the available voices for use")
+async def _voices(ctx):
+    await sendRequest.getAvailableVoices(ctx, voicedata)
+
+@bot.command(pass_context=True, name="quota", help="Displays the remaining quota for use")
+async def _quota(ctx):
+    await sendRequest.getQuota(ctx)
+
+@bot.command(pass_context=True, name="stop", help="Stops the current sound clip or loop")
+async def _stop(ctx):
+    await playVoice.stopVoice(ctx, bot)
+
+@bot.command(pass_context=True, name="join", help="Joins the voice channel")
+async def _join(ctx):
+    await connectToVoice.connectToVoice(ctx, bot, "joincommand")
+
+@bot.command(pass_context=True, name="leave", help="Leaves the voice channel")
+async def _leave(ctx):
+    await connectToVoice.leaveVoice(ctx)
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -220,29 +369,15 @@ async def on_voice_state_update(member, before, after):
 async def on_message(message):
     await bot.process_commands(message)
     if message.content.startswith(PREFIX):
-        await asyncio.sleep(15)
+        asyncio.create_task(delete_message(message))
+
+async def delete_message(message):
+    await asyncio.sleep(30)
+    try:
         await message.delete()
+    except:
+        pass
 
-@bot.command(pass_context=True, name="voices", help="Displays the available voices for use")
-async def _voices(ctx):
-    await sendRequest.getAvailableVoices(ctx, voicedata)
-
-@bot.command(pass_context=True, name="quota", help="Displays the remaining quota for use")
-async def _quota(ctx):
-    await sendRequest.getQuota(ctx)
-
-@bot.command(pass_context=True, name="stop", help="Stops the current sound clip or loop")
-async def _stop(ctx):
-    await playVoice.stopVoice(ctx, bot)
-
-@bot.command(pass_context=True, name="join", help="Joins the voice channel")
-async def _join(ctx):
-    await connectToVoice.connectToVoice(ctx, bot, "joincommand")
-
-@bot.command(pass_context=True, name="leave", help="Leaves the voice channel")
-async def _leave(ctx):
-    await connectToVoice.leaveVoice(ctx)
-    
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, CommandNotFound):
@@ -250,7 +385,7 @@ async def on_command_error(ctx, error):
     elif isinstance(error, commands.MissingRequiredArgument):
         botresponse = "missingarg"
         errormessage = await getBotResponse.getBotResponse(botresponse)
-        await sendErrorMessage.sendValueErrorMessage(errormessage, ctx, error)
+        await sendErrorMessage.sendErrorMessage(errormessage, ctx, error)
     elif isinstance(error, commands.BadArgument):
         botresponse = "valerror"
         errormessage = await getBotResponse.getBotResponse(botresponse)
