@@ -1,6 +1,5 @@
 import requests
 import json
-import asyncio
 import os
 import functions.sendBotMessage as sendBotMessage
 
@@ -38,11 +37,18 @@ async def getSoundclip(voiceid, botmessage, TTSMODEL, stability):
 
 async def getAvailableVoices(ctx, voicedata):
     try:
-        namelist = sorted([i['name'].capitalize() for i in voicedata])
-        message = ', '.join(namelist)
+        # Extract first word of each voice name
+        names = {
+            voice["name"].split(" - ", 1)[0].strip().capitalize()
+            for voice in voicedata
+        }
 
-        botmessage = (f"These are the available TTS voices:\n{message}")
+        namelist = sorted(names)
+        message = ", ".join(namelist)
+
+        botmessage = f"These are the available TTS voices:\n{message}"
         await sendBotMessage.sendBotMessage(ctx, botmessage, -1)
+
     except Exception as e:
         print(f"Could not fetch available voices: {e}")
 
