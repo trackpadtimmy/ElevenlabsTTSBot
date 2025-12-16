@@ -32,16 +32,20 @@ async def checkRandomVoice(name, voicedata, ctx):
     return ttsvoice, voiceid
 '''
 async def getSelectedVoice(voicename, voicedata, ctx):
-    voicename = voicename.capitalize()
-    foundvoice = ""
-    for i in range(len(voicedata)):
-        if voicename == voicedata[i]['name']:
-            foundvoice = voicename
-            voiceid = voicedata[i]['voice_id']
-            break
-    if foundvoice == "":
-        sendBotMessage.sendVoiceNotFoundMessage(voicename, ctx)
-    return foundvoice, voiceid
+    voiceid = None
+    requested = voicename.casefold()
+
+    for voice in voicedata:
+        fullname = voice["name"]
+        firstword = fullname.split(" - ", 1)[0].strip()
+
+        if requested == firstword.casefold():
+            voiceid = voice["voice_id"]
+            return firstword, voiceid
+
+    await sendBotMessage.sendVoiceNotFoundMessage(voicename, ctx)
+    return None, None
+
 
 async def setStability(stability):
     try:
