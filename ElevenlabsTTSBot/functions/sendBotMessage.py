@@ -28,9 +28,15 @@ async def sendPlayingMessage(ctx, ttsuser, ttsvoice, stabstr, botmessage, credit
             f"Credits used: {credits_used}"
         )
         audio = File(audiofile_path, filename=os.path.basename(audiofile_path))
-
         botmessage = await ctx.send(content=infomessage, file=audio)
+    except Exception as e:
+        print(f"Couldn't send message: {e}")
 
+async def sendUploadMessage(ctx, audiofile_path):
+    try:
+        infomessage = ""
+        audio = File(audiofile_path, filename=os.path.basename(audiofile_path))
+        await ctx.send(content=infomessage, file=audio)
     except Exception as e:
         print(f"Couldn't send message: {e}")
 

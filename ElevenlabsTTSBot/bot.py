@@ -60,10 +60,10 @@ async def on_ready():
     activity = discord.Game(statusmessage)
     await bot.change_presence(status=discord.Status.online, activity=activity)
 
-async def process_tts_request(ctx, name, stability, *message):
+async def process_tts_request(ctx, name, stability, message: str):
     if (voice := await connectToVoice.connectToVoice(ctx, bot)) is not None:
         try:
-            botmessage = " ".join(message[:])
+            botmessage = message
 
             if ctx.command.name == "tts":
                     ttsvoice, voiceid = await getBotVoice.getSelectedVoice(name, voicedata, ctx)
@@ -183,17 +183,40 @@ async def delete_alias(ctx, label):
 async def list_aliases(ctx):
     try:
         soundboard = await load_soundboard()
-        if not soundboard["aliases"]:
+
+        aliases = list(soundboard.get("aliases", {}).keys())
+        if not aliases:
             await sendBotMessage.sendBotMessage(ctx, "No aliases found in the soundboard.")
             return
-        alias_list = ", ".join(soundboard["aliases"].keys())
-        count = len(soundboard["aliases"])
-        await sendBotMessage.sendBotMessage(ctx, f"{count} Soundboard Aliases:\n{alias_list}", -1)
-    
+
+        count = len(aliases)
+        header = f"{count} Soundboard Aliases:\n"
+        max_length = 2000
+
+        current_message = header
+
+        for alias in aliases:
+            # Add comma and space if this isn't the first alias in the message
+            alias_text = ("" if current_message.endswith("\n") else ", ") + alias
+
+            # If adding this alias would exceed Discord's limit, send current message
+            if len(current_message) + len(alias_text) > max_length:
+                await sendBotMessage.sendBotMessage(ctx, current_message, -1)
+
+                # Start a new message without the header
+                current_message = alias
+            else:
+                current_message += alias_text
+
+        # Send any remaining aliases
+        if current_message.strip():
+            await sendBotMessage.sendBotMessage(ctx, current_message, -1)
+
     except Exception as error:
         botresponse = ""
         errormessage = await getBotResponse.getBotResponse(botresponse)
         await sendErrorMessage.sendErrorMessage(errormessage, ctx, error)
+
 
 async def play_file(ctx, *filename):
     if (voice := await connectToVoice.connectToVoice(ctx, bot)) is not None:
@@ -250,29 +273,52 @@ async def play_alias(ctx, label):
     filename = soundboard["aliases"][label]
     await play_file(ctx, filename)
 
+async def upload_file(ctx, *filename):
+    if (voice := await connectToVoice.connectToVoice(ctx, bot)) is not None:
+        try:
+            filename = " ".join(filename[:])
+            filename = filename.replace(" ", "")
+            if not filename.endswith(".mp3"):
+                filename = filename + ".mp3"
+            audiofile_path = SOUNDFILEDIR + filename
+
+            if not os.path.isfile(audiofile_path):
+                await sendBotMessage.sendBotMessage(ctx, f"File not found: {filename}")
+                return
+            
+            await sendBotMessage.sendUploadMessage(ctx, audiofile_path)
+
+        except Exception as error:
+            botresponse = ""
+            errormessage = await getBotResponse.getBotResponse(botresponse)
+            await sendErrorMessage.sendErrorMessage(errormessage, ctx, error)
+
 @bot.command(pass_context=True, name="tts", help=f"Use tts Voice message. `{PREFIX}tts Adam 50 Hello World` param: <Voice or random> <Stability 1-100> <Message>")
 async def _tts(ctx, 
                name: str = commands.parameter(description="The name of the voice you want to use"), 
                stability: str = commands.parameter(description="The stability of the voice, a number between 0-100"), 
-               *message):
-    await process_tts_request(ctx, name, stability, *message)
+               *,
+               message: str):
+    await process_tts_request(ctx, name, stability, message)
 
 @bot.command(pass_context=True, name="unstable", help=f"TTS with 0 stability, for making crazy stuff! `{PREFIX}tts Adam Hello World` param: <Voice or random> <Message>")
 async def _unstable(ctx, 
                     name: str = commands.parameter(description="The name of the voice you want to use. Or put Random."), 
-                    *message):
-    await process_tts_request(ctx, name, 0, *message)
+                    *,
+                    message: str):
+    await process_tts_request(ctx, name, 0, message)
 
 @bot.command(pass_context=True, name="random", help=f"Takes a random voice and stability. `{PREFIX}random Hello World` param: <Message>")
-async def _random(ctx, *message):
-    await process_tts_request(ctx, "random", 0, *message)
+async def _random(ctx, *, message: str):
+    await process_tts_request(ctx, "random", 0, message)
 
 @bot.command(pass_context=True, name="custom", help=f"Custom voice tts. `{PREFIX}custom Adam 50 Hello World` param: <Voice or random> <Stability 1-100> <Message>")
 async def _custom(ctx, 
                name: str = commands.parameter(description="The name of the voice you want to use"), 
                stability: str = commands.parameter(description="The stability of the voice, a number between 0-100"), 
-               *message):
-    await process_tts_request(ctx, name, stability, *message)
+               *,
+               message: str):
+    await process_tts_request(ctx, name, stability, message)
 
 @bot.command(pass_context=True, name="play", help=f"Play a specific audio file from the audio folder. `{PREFIX}play username123` param: <Filename>")
 async def _play(ctx, *filename):
@@ -311,6 +357,10 @@ async def _soundboard(ctx,
 @bot.command(pass_context=True, name="voices", help="Displays the available voices for use")
 async def _voices(ctx):
     await sendRequest.getAvailableVoices(ctx, voicedata)
+
+@bot.command(pass_context=True, name="upload", aliases=["up"], help=f"Uploads an audio file from the soundfiles directory. `{PREFIX}upload filename` param: <Filename>")
+async def _upload(ctx, *filename):
+    await upload_file(ctx, *filename)
 
 @bot.command(pass_context=True, name="quota", help="Displays the remaining quota for use")
 async def _quota(ctx):
@@ -399,4 +449,3 @@ except Exception as e:
     print("Bot couldn't run: {e}")
 finally:
     print("Bot has stopped running. Leaving...")
-    bot.voice_clients.disconnect()
