@@ -83,6 +83,9 @@ async def process_tts_request(ctx, name, stability, message: str):
             if name.lower() == "random":
                 ttsvoice, voiceid = await getBotVoice.getRandomVoice(voicedata)
 
+            if not ttsvoice or not voiceid:
+                return
+
             response = await sendRequest.getSoundclip(voiceid, botmessage, TTSMODEL, stability)
             # Check for errors in the response
             # Specifically for quota exception, but handles others too
